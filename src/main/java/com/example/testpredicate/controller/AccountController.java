@@ -1,19 +1,20 @@
 package com.example.testpredicate.controller;
 
+import com.example.testpredicate.entity.domain.User;
 import com.example.testpredicate.entity.security.JwtRequest;
 import com.example.testpredicate.entity.security.JwtResponse;
+import com.example.testpredicate.repository.UserRepository;
 import com.example.testpredicate.security.JwtUtil;
 import com.example.testpredicate.service.CustomUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AccountController {
 
     @Autowired
-    private AuthenticationManager authenticationManager;
+    UserRepository userRepository;
 
     @Autowired
     JwtUtil jwtUtils;
@@ -29,15 +30,20 @@ public class AccountController {
     @Autowired
     private CustomUserDetailsService domainUserDetailService;
 
+    private PasswordEncoder passwordEncoder(){
+        return new BCryptPasswordEncoder(10);
+    }
+
     @PostMapping("/authenticate")
-    public String generateToken(@RequestBody JwtRequest authRequest) throws Exception {
+    public ResponseEntity generateToken(@RequestBody JwtRequest authRequest) throws Exception {
         try {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
-            );
+            User checkUser = userRepository.findByLogin(authRequest.getUsername());
+            if(passwordEncoder().matches(authRequest.getPassword(),checkUser.getPassword())){
+                return ResponseEntity.ok(jwtUtils.generateToken(authRequest.getUsername()));
+            }
         } catch (Exception ex) {
-            throw new Exception("inavalid username/password");
+            throw new Exception("Invalid username/password");
         }
-        return jwtUtils.generateToken(authRequest.getUsername());
+        throw  new UsernameNotFoundException("User doesn't exist");
     }
 }

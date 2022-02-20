@@ -1,6 +1,8 @@
 package com.example.testpredicate.security;
 
+import com.example.testpredicate.exception.JwtExpiredException;
 import com.example.testpredicate.service.CustomUserDetailsService;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,7 +30,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws ServletException, IOException {
 
         String authorizationHeader = httpServletRequest.getHeader("Authorization");
-
+        try {
         String token = null;
         String userName = null;
 
@@ -49,6 +51,11 @@ public class JwtFilter extends OncePerRequestFilter {
                         .setDetails(new WebAuthenticationDetailsSource().buildDetails(httpServletRequest));
                 SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
             }
+        }
+        }
+        catch (ExpiredJwtException ex){
+            httpServletResponse.getWriter().write(new JwtExpiredException("Jwt expired").getMessage());
+            return;
         }
         filterChain.doFilter(httpServletRequest, httpServletResponse);
     }
